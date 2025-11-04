@@ -94,10 +94,14 @@ class MQTTInterface:
     
     def _on_message(self, client, userdata, msg):
         """MQTT消息接收回调"""
-        self.logger.debug(f"收到消息 - 主题: {msg.topic}, 负载: {msg.payload}")
-        
-        if self.on_message_callback:
-            self.on_message_callback(msg.topic, msg.payload)
+        try:
+            self.logger.debug(f"收到消息 - 主题: {msg.topic}, 负载: {msg.payload}")
+            
+            if self.on_message_callback:
+                self.on_message_callback(msg.topic, msg.payload)
+                
+        except Exception as e:
+            self.logger.error(f"处理MQTT消息时发生错误: {str(e)}")
     
     def connect(self) -> bool:
         """连接到MQTT服务器"""
@@ -217,7 +221,7 @@ class MQTTInterface:
     def subscribe(self, topic: str, qos: int = 0) -> bool:
         """
         订阅MQTT主题
-        
+    
         Args:
             topic: MQTT主题
             qos: 服务质量等级
@@ -228,17 +232,23 @@ class MQTTInterface:
         if not self.is_connected():
             self.logger.warning("MQTT未连接，无法订阅主题")
             return False
-        
+
         try:
-            result = self.client.subscribe(topic, qos)
+            # 确保qos是整数值，但要先检查类型
+            if isinstance(qos, (int, str, bytes, float)):
+                qos = int(qos)
+            else:
+                qos = 0  # 如果无法转换，使用默认值
             
+            result = self.client.subscribe(topic, qos)
+        
             if result[0] == mqtt.MQTT_ERR_SUCCESS:
                 self.logger.info(f"已订阅主题: {topic}")
                 return True
             else:
                 self.logger.error(f"订阅主题失败，错误码: {result[0]}")
                 return False
-                
+            
         except Exception as e:
             self.logger.error(f"订阅主题时发生错误: {str(e)}")
             return False

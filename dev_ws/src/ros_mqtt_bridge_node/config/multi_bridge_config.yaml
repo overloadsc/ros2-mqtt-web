@@ -41,71 +41,106 @@ bridges:
       source_node: "hello_world_publisher" # 源ROS节点名
       frame_id: "hello_world_frame" # 坐标系ID
     
-  - name: "turtle_cmd_vel_bridge" 
-    description: "小海龟速度命令桥接"
-    enabled: true
-    ros_config:
-      topic: "/turtle1/cmd_vel"
-      message_type: "geometry_msgs/Twist"
-      data_field: "linear.x,angular.z"  # 提取线速度和角速度
-      queue_size: 10
-    mqtt_config:
-      topic_name: "turtle"
-      topic_suffix: "cmd_vel"
-      qos: 1
-      retain: false
-    metadata:
-      source_node: "teleop_turtle"
-      frame_id: "turtle_frame"
+  # - name: "turtle_cmd_vel_bridge" 
+  #   description: "小海龟速度命令桥接"
+  #   enabled: true
+  #   ros_config:
+  #     topic: "/turtle1/cmd_vel"
+  #     message_type: "geometry_msgs/Twist"
+  #     data_field: "linear.x,angular.z"  # 提取线速度和角速度
+  #     queue_size: 10
+  #   mqtt_config:
+  #     topic_name: "turtle"
+  #     topic_suffix: "cmd_vel"
+  #     qos: 1
+  #     retain: false
+  #   metadata:
+  #     source_node: "teleop_turtle"
+  #     frame_id: "turtle_frame"
   
-  - name: "GPS_bridge" 
-    description: "GPS经纬度数据桥接"
-    enabled: true
-    ros_config:
-      topic: "/gps/fix"
-      message_type: "sensor_msgs/NavSatFix"
-      data_field: "latitude,longitude"  # 提取GPS经纬度信息
-      queue_size: 10
-    mqtt_config:
-      topic_name: "gps"
-      topic_suffix: "fix"
-      qos: 0
-      retain: false
-    metadata:
-      source_node: "ros_bridge"
-      frame_id: "gps_frame"
+  # - name: "GPS_bridge" 
+  #   description: "GPS经纬度数据桥接"
+  #   enabled: true
+  #   ros_config:
+  #     topic: "/gps/fix"
+  #     message_type: "sensor_msgs/NavSatFix"
+  #     data_field: "latitude,longitude"  # 提取GPS经纬度信息
+  #     queue_size: 10
+  #   mqtt_config:
+  #     topic_name: "gps"
+  #     topic_suffix: "fix"
+  #     qos: 0
+  #     retain: false
+  #   metadata:
+  #     source_node: "ros_bridge"
+  #     frame_id: "gps_frame"
 
-  - name: "Image_bridge" 
-    description: "图像元数据桥接"
-    enabled: true
-    ros_config:
-      topic: "/image_raw"
-      message_type: "sensor_msgs/Image"
-      data_field: "height,width,encoding"  # 提取图像元数据信息
-      queue_size: 10
-    mqtt_config:
-      topic_name: "image_raw"
-      topic_suffix: "metadata"
-      qos: 1
-      retain: false
-    metadata:
-      source_node: "ros_bridge"
-      frame_id: "image_frame"
+  # - name: "Image_bridge" 
+  #   description: "图像元数据桥接"
+  #   enabled: true
+  #   ros_config:
+  #     topic: "/image_raw"
+  #     message_type: "sensor_msgs/Image"
+  #     data_field: "height,width,encoding"  # 提取图像元数据信息
+  #     queue_size: 10
+  #   mqtt_config:
+  #     topic_name: "image_raw"
+  #     topic_suffix: "metadata"
+  #     qos: 1
+  #     retain: false
+  #   metadata:
+  #     source_node: "ros_bridge"
+  #     frame_id: "image_frame"
 
-  - name: "Compressed_Image_Data_bridge" 
-    description: "压缩图像完整数据桥接(Base64编码)"
-    enabled: true  # 启用压缩图像数据传输
+  # - name: "Compressed_Image_Data_bridge" 
+  #   description: "压缩图像完整数据桥接(Base64编码)"
+  #   enabled: true  # 启用压缩图像数据传输
+  #   ros_config:
+  #     topic: "/image_raw/compressed"
+  #     message_type: "sensor_msgs/CompressedImage"
+  #     data_field: "data"  # 传输压缩后的图像二进制数据
+  #     queue_size: 5  # 增加队列大小，避免消息丢失
+  #   mqtt_config:
+  #     topic_name: "image_compressed" 
+  #     topic_suffix: "data"
+  #     qos: 1  # 使用QoS 0减少开销，提高性能
+  #     retain: false
+  #   metadata:
+  #     source_node: "ros_bridge"
+  #     frame_id: "camera_frame"
+
+  - name: "event_trigger_bridge"  # 唯一标识名
+    description: "事件触发消息桥接"  # 描述
+    enabled: true  # 启用该桥接
+    type: mqtt_to_ros  # 桥接类型：MQTT到ROS
     ros_config:
-      topic: "/image_raw/compressed"
-      message_type: "sensor_msgs/CompressedImage"
-      data_field: "data"  # 传输压缩后的图像二进制数据
-      queue_size: 5  # 增加队列大小，避免消息丢失
+      topic: "/event_trigger"  # 对应的ROS话题（根据实际情况修改，例如你的ROS节点发布到这个话题）
+      message_type: "std_msgs/Bool"  # ROS消息类型（根据实际消息类型修改，如自定义消息）
+      data_field: "data"  # 提取的消息字段（如std_msgs/String的data字段，若为自定义消息需填对应字段）
+      queue_size: 10  # ROS订阅队列大小
     mqtt_config:
-      topic_name: "image_compressed" 
-      topic_suffix: "data"
-      qos: 1  # 使用QoS 0减少开销，提高性能
-      retain: false
+      topic_name: "event_trigger"  # 主题名（结合prefix和suffix组成最终MQTT主题）
+      topic_suffix: "data"  # 后缀为空，避免多一层路径
+      qos: 0  # 该桥接的QoS等级（根据需求设置0/1/2）
+      retain: false  # 是否保留消息
     metadata:
-      source_node: "ros_bridge"
-      frame_id: "camera_frame"
+      source_node: "event_publisher"  # 发布该ROS消息的节点名（自定义）
+      frame_id: "event_frame"  # 坐标系ID（自定义，非必需）
+
+  # - name: "event_trigger_bridge"  # 唯一标识名
+  #   description: "事件触发消息桥接"  # 描述
+  #   enabled: true  # 启用该桥接
+  #   ros_config:
+  #     topic: "/event_trigger"  # 对应的ROS话题（根据实际情况修改，例如你的ROS节点发布到这个话题）
+  #     message_type: "std_msgs/Bool"  # ROS消息类型（根据实际消息类型修改，如自定义消息）
+  #     data_field: "data"  # 提取的消息字段（如std_msgs/String的data字段，若为自定义消息需填对应字段）
+  #     queue_size: 10  # ROS订阅队列大小
+  #   mqtt_config:
+  #     topic_name: "event_trigger"  # 主题名（结合prefix和suffix组成最终MQTT主题）
+  #     topic_suffix: "data"  # 后缀为空，避免多一层路径
+  #     qos: 0  # 该桥接的QoS等级（根据需求设置0/1/2）
+  #     retain: false  # 是否保留消息
+  #   metadata:
+  #     source_node: "ros_bridge"  # 发布该ROS消息的节点名（自定义）
+  #     frame_id: "event_frame"  # 坐标系ID（自定义，非必需）
 

@@ -3,8 +3,11 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.subscription import Subscription
+from rclpy.publisher import Publisher
 import importlib
 import json
+import base64
+import numpy as np
 from typing import Dict, Any, Optional, Callable
 from datetime import datetime
 
@@ -52,16 +55,34 @@ class TopicBridge:
             if not message_class:
                 return False
             
-            # 创建订阅者
+            # 获取桥接方向
+            bridge_type = self.config.get('type', 'ros_to_mqtt')  # 默认为ROS到MQTT
             ros_topic = self.ros_config.get('topic')
             queue_size = self.ros_config.get('queue_size', 10)
             
-            self.subscription = self.node.create_subscription(
-                message_class,
-                ros_topic,
-                self._message_callback,
-                queue_size
-            )
+            if bridge_type == 'mqtt_to_ros':
+                # 创建ROS发布者
+                self.publisher = self.node.create_publisher(
+                    message_class,
+                    ros_topic,
+                    queue_size
+                )
+                # 先设置回调，再订阅
+                mqtt_topic = self._build_mqtt_topic()
+                self.mqtt_interface.set_on_message_callback(self._mqtt_message_callback)
+                success = self.mqtt_interface.subscribe(mqtt_topic)
+                if not success:
+                    self.logger.error(f'订阅MQTT主题失败: {mqtt_topic}')
+                    return False
+                self.logger.info(f'已订阅MQTT主题: {mqtt_topic} -> ROS话题: {ros_topic}')
+            else:
+                # 创建ROS订阅者
+                self.subscription = self.node.create_subscription(
+                    message_class,
+                    ros_topic,
+                    self._message_callback,
+                    queue_size
+                )
             
             self.logger.info(f'✓ 桥接器 {self.name} 已启动')
             self.logger.info(f'  ROS话题: {ros_topic}')
@@ -78,7 +99,16 @@ class TopicBridge:
         if self.subscription:
             self.node.destroy_subscription(self.subscription)
             self.subscription = None
-            self.logger.info(f'✓ 桥接器 {self.name} 已停止')
+        
+        if hasattr(self, 'publisher'):
+            self.node.destroy_publisher(self.publisher)
+            delattr(self, 'publisher')
+            
+            # 取消订阅MQTT主题
+            mqtt_topic = self._build_mqtt_topic()
+            self.mqtt_interface.unsubscribe(mqtt_topic)
+            
+        self.logger.info(f'✓ 桥接器 {self.name} 已停止')
     
     def _get_message_class(self):
         """动态获取消息类型"""
@@ -356,3 +386,57 @@ class TopicBridge:
         
         elapsed = (datetime.now() - self.last_message_time).total_seconds()
         return elapsed < timeout_seconds
+    
+    def _mqtt_message_callback(self, topic: str, payload: bytes):
+        """处理从MQTT接收到的消息"""
+        try:
+            # 更新统计信息
+            self.message_count += 1
+            self.last_message_time = datetime.now()
+            
+            # 解析MQTT消息
+            try:
+                mqtt_message = json.loads(payload.decode('utf-8'))
+                # 如果消息是简单类型（如布尔值），直接使用
+                if isinstance(mqtt_message, (bool, int, float, str)):
+                    data = mqtt_message
+                else:
+                    # 否则尝试获取数据字段
+                    data = mqtt_message.get('data', mqtt_message)
+            except json.JSONDecodeError:
+                # 如果不是JSON格式，尝试直接解码为字符串
+                data = payload.decode('utf-8')
+            
+            # 创建ROS消息
+            message_class = self._get_message_class()
+            if not message_class:
+                return
+            
+            ros_msg = message_class()
+            
+            # 获取目标字段名
+            data_field = self.ros_config.get('data_field', 'data')
+            
+            # 设置消息字段
+            if hasattr(ros_msg, data_field):
+                field_type = type(getattr(ros_msg, data_field))
+                # 转换数据类型以匹配目标字段
+                try:
+                    converted_data = field_type(data)
+                    setattr(ros_msg, data_field, converted_data)
+                except (ValueError, TypeError) as e:
+                    self.logger.error(f'数据类型转换失败: {str(e)}')
+                    return
+            else:
+                self.logger.error(f'ROS消息类型没有字段: {data_field}')
+                return
+            
+            # 发布到ROS话题
+            if hasattr(self, 'publisher'):
+                self.publisher.publish(ros_msg)
+                self.logger.debug(f'✓ 已发布到ROS话题: {self.ros_config.get("topic")}')
+            else:
+                self.logger.error('未找到ROS发布者')
+                
+        except Exception as e:
+            self.logger.error(f'处理MQTT消息时发生错误: {str(e)}')
