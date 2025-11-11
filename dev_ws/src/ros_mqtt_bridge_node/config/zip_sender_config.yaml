@@ -1,0 +1,18 @@
+# ZIP文件发送配置
+zip_sender:
+  # MQTT配置
+  mqtt:
+    broker_host: "120.24.79.108"
+    broker_port: 1883
+    username: "zone"
+    password: "NeverGiveUp"
+    topic: "ros2/file_transfer/zip"
+    qos: 1
+  
+  # 文件发送配置
+  file:
+    zip_file_path: "~/Downloads/rosbag2_2025_11_06-10_36_53.zip"
+    # 支持多个文件，按顺序发送
+    # zip_file_path: 
+    #   - "~/Downloads/file1.zip"
+    #   - "~/Downloads/file2.zip"

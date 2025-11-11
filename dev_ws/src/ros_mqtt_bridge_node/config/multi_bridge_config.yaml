@@ -127,20 +127,3 @@ bridges:
       source_node: "event_publisher"  # 发布该ROS消息的节点名（自定义）
       frame_id: "event_frame"  # 坐标系ID（自定义，非必需）
 
-  # - name: "event_trigger_bridge"  # 唯一标识名
-  #   description: "事件触发消息桥接"  # 描述
-  #   enabled: true  # 启用该桥接
-  #   ros_config:
-  #     topic: "/event_trigger"  # 对应的ROS话题（根据实际情况修改，例如你的ROS节点发布到这个话题）
-  #     message_type: "std_msgs/Bool"  # ROS消息类型（根据实际消息类型修改，如自定义消息）
-  #     data_field: "data"  # 提取的消息字段（如std_msgs/String的data字段，若为自定义消息需填对应字段）
-  #     queue_size: 10  # ROS订阅队列大小
-  #   mqtt_config:
-  #     topic_name: "event_trigger"  # 主题名（结合prefix和suffix组成最终MQTT主题）
-  #     topic_suffix: "data"  # 后缀为空，避免多一层路径
-  #     qos: 0  # 该桥接的QoS等级（根据需求设置0/1/2）
-  #     retain: false  # 是否保留消息
-  #   metadata:
-  #     source_node: "ros_bridge"  # 发布该ROS消息的节点名（自定义）
-  #     frame_id: "event_frame"  # 坐标系ID（自定义，非必需）
-
